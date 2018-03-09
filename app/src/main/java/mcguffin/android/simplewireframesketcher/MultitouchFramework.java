@@ -272,7 +272,7 @@ public class MultitouchFramework extends View {
 
 									int new_x = Math.round( event.getX( pointerIndex ) );
 									int new_y = Math.round( event.getY( pointerIndex ) );
-									float new_z = 1, new_pressure = 0;
+									float new_z = 1, new_pressure = 1;
 									if ( newCursor.isStylusOrEraser() ) {
 										// TODO-2 what about newCursor.button1 and newCursor.button2 ?
 										//     You should set them using event.getButtonState()
@@ -327,7 +327,7 @@ public class MultitouchFramework extends View {
 
 
 								if ( isThereNewEventData ) {
-									float new_z = 1, new_pressure = 0;
+									float new_z = 1, new_pressure = 1;
 									if ( existingCursor.isStylusOrEraser() ) {
 										// TODO-2 what about newCursor.button1 and newCursor.button2 ?
 										//     You should set them using event.getButtonState()
