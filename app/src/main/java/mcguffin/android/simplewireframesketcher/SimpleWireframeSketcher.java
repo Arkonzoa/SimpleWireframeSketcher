@@ -1,14 +1,7 @@
 
 package mcguffin.android.simplewireframesketcher;
 
-
-import android.util.Log;
-
 import java.util.ArrayList;
-
-
-
-
 
 // This stores a polygonal line, creating by a stroke of the user's finger or pen.
 class Stroke {
@@ -115,11 +108,16 @@ class DrawingCanvas implements MultitouchReceiver {
 	public static final int STYLUS_MODE_INKING = 0;
 	public static final int STYLUS_MODE_INKING_SYMMETRICAL = 1;
 	public static final int STYLUS_MODE_LASSO = 2;
+	private boolean multiTouchMode = false;
 	private int stylusMode = STYLUS_MODE_INKING;
 
 	public DrawingCanvas( Drawing d, GraphicsWrapper gw ) {
 		drawing = d;
 		this.gw = gw;
+	}
+
+	public void toggleMultiTouchMode(){
+		multiTouchMode = !multiTouchMode;
 	}
 
 	public void drawLineSegment3D( Point3D p0, Point3D p1 ) {
@@ -167,13 +165,49 @@ class DrawingCanvas implements MultitouchReceiver {
 					// ignore the other cursor
 					otherCursor = null;
 				}
+				//Saves the history of lines in multi tactile mode
+				if ( multiTouchMode && cursor.getDistanceStateEventType() == MultitouchCursor.EVENT_OUT_OF_RANGE_TO_TOUCHING ) {
+					inputCursor = cursor;
+					inputCursor.setSavingOfHistory(true);
+				}
+				else
+					if ( otherCursor != null ) {
+						updateCameraBimanually( cursor, otherCursor );
+					}
+					else {
+						updateCameraUnimanually( cursor );
+					}
+			}
+			//Draws the lines if in multitactile mode
+			else if (cursor.distanceState != MultitouchCursor.DS_TOUCHING && multiTouchMode){
+				Vector3D backwardVector = camera.getForwardVector().negated();
+				int dimension = backwardVector.indexOfGreatestComponent();
+				Vector3D normalToWorkingPlane = new Vector3D(0,0,0);
+				normalToWorkingPlane.v[dimension] = backwardVector.v[dimension];
+				normalToWorkingPlane = normalToWorkingPlane.normalized();
+				Plane plane = new Plane( normalToWorkingPlane, workingOrigin );
 
-				if ( otherCursor != null ) {
-					updateCameraBimanually( cursor, otherCursor );
+				Stroke newStroke = new Stroke();
+				Stroke newStroke2 = null; // mirror image
+				if ( stylusMode == STYLUS_MODE_INKING_SYMMETRICAL )
+					newStroke2 = new Stroke();
+				for ( Point2D p : inputCursor.getHistoryOfPositions() ) {
+					Ray3D ray = camera.computeRay( p.x(), p.y() );
+					Point3D intersection = new Point3D();
+					if ( plane.intersects( ray, intersection, true ) ) {
+						newStroke.addPoint( intersection );
+						if ( stylusMode == STYLUS_MODE_INKING_SYMMETRICAL )
+							newStroke2.addPoint( new Point3D( - intersection.x(), intersection.y(), intersection.z() ) );
+					}
 				}
-				else {
-					updateCameraUnimanually( cursor );
+				newStroke.setColor( currentColor_r, currentColor_g, currentColor_b );
+				drawing.addStroke( newStroke );
+				if ( stylusMode == STYLUS_MODE_INKING_SYMMETRICAL ) {
+					newStroke2.setColor( currentColor_r, currentColor_g, currentColor_b );
+					drawing.addStroke( newStroke2 );
 				}
+
+				inputCursor = null;
 			}
 		}
 		else { // stylus or mouse
@@ -612,8 +646,8 @@ class Toolbar implements MultitouchDispatcher, MultitouchReceiver {
 	private static final int BM_BLUE_INK = 10;    // radio button group C
 	private static final int BM_PURPLE_INK = 11; // radio button group C
 	private static final int BM_GREY_INK = 12;   // radio button group C
-	private static final int BM_EXPORT = 13;
-	private static final int NUM_BITMAPS = 13;
+	private static final int BM_MULTI = 13;
+	private static final int NUM_BITMAPS = 14;
 
 	// These indices will be used to index into an array,
 	// and thus should start at zero.
@@ -630,7 +664,7 @@ class Toolbar implements MultitouchDispatcher, MultitouchReceiver {
 	private static final int TB_BLUE_INK = 9;   // radio button group C
 	private static final int TB_PURPLE_INK = 10; // radio button group C
 	private static final int TB_GREY_INK = 11;  // radio button group C
-	private static final int TB_EXPORT = 12;
+	private static final int TB_MULTI = 12;
 	private static final int NUM_TOOLBAR_BUTTONS = 13;
 
 	public MultitouchFramework mf = null;
@@ -641,6 +675,7 @@ class Toolbar implements MultitouchDispatcher, MultitouchReceiver {
 
 	private int stylusMode_toolbarButton = TB_INKING_TOOL;
 	private int colorMode_toolbarButton = TB_BLACK_INK;
+	private boolean multiTactileMode = false;
 
 	public Toolbar( MultitouchFramework mf, DrawingCanvas dc ) {
 		this.mf = mf;
@@ -660,7 +695,7 @@ class Toolbar implements MultitouchDispatcher, MultitouchReceiver {
 		mf.loadBitmap( BM_BLUE_INK,                       R.drawable.color_0080ff );
 		mf.loadBitmap( BM_PURPLE_INK,                     R.drawable.color_ff00ff );
 		mf.loadBitmap( BM_GREY_INK,                       R.drawable.color_808080 );
-		mf.loadBitmap( BM_EXPORT,						  R.drawable.pencil );
+		mf.loadBitmap( BM_MULTI,						  R.drawable.pencil );
 
 		buttons = new ToolbarButton[ NUM_TOOLBAR_BUTTONS ];
 		int index = 0;
@@ -696,8 +731,8 @@ class Toolbar implements MultitouchDispatcher, MultitouchReceiver {
 			BM_PURPLE_INK,-1,-1); x0 += iconSize;
 		buttons[index++] = new ToolbarButton(mf,this,x0,0,iconSize,iconSize,"Grey Ink",
 			BM_GREY_INK,-1,-1); x0 += iconSize;
-		buttons[index++] = new ToolbarButton(mf, this, x0, 0, iconSize, iconSize, " Export to OBJ",
-			BM_EXPORT, -1, -1);
+		buttons[index++] = new ToolbarButton(mf, this, x0, 0, iconSize, iconSize, "Multitactile Mode",
+			BM_MULTI, -1, -1); x0 += iconSize;
 		MultitouchFramework.Assert( index == NUM_TOOLBAR_BUTTONS, "e4ef8900" );
 		for ( int i = 0; i < NUM_TOOLBAR_BUTTONS; ++i ) {
 			dispatcherImplementation.addReceiver( buttons[i] );
@@ -837,9 +872,13 @@ class Toolbar implements MultitouchDispatcher, MultitouchReceiver {
 			if ( stylusMode_toolbarButton!=TB_INKING_TOOL && stylusMode_toolbarButton!=TB_INKING_SYMMETRICAL_TOOL )
 				setStylusMode( TB_INKING_TOOL );
 		}
-		else if (button == buttons [ TB_EXPORT ]) {
-			//TODO: Call export function
-			Log.d("Export", "Export call");
+		else if (button == buttons [ TB_MULTI ]) {
+			//Toggles the multi tactile mode
+			drawingCanvas.toggleMultiTouchMode();
+			multiTactileMode = !multiTactileMode;
+			if ( stylusMode_toolbarButton!=TB_INKING_TOOL && stylusMode_toolbarButton!=TB_INKING_SYMMETRICAL_TOOL )
+				setStylusMode( TB_INKING_TOOL );
+
 		}
 
 		else {
@@ -859,6 +898,9 @@ class Toolbar implements MultitouchDispatcher, MultitouchReceiver {
 		gw.setColor(1,0,0);
 		drawHighlightingForButton( gw, stylusMode_toolbarButton );
 		drawHighlightingForButton( gw, colorMode_toolbarButton );
+		if (multiTactileMode) {
+			drawHighlightingForButton(gw, TB_MULTI);
+		}
 	}
 }
 
