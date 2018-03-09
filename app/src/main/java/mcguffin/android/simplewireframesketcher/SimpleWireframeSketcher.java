@@ -108,6 +108,7 @@ class DrawingCanvas implements MultitouchReceiver {
 	public static final int STYLUS_MODE_INKING = 0;
 	public static final int STYLUS_MODE_INKING_SYMMETRICAL = 1;
 	public static final int STYLUS_MODE_LASSO = 2;
+	public static final int STYLUS_MODE_ERASER = 3;
 	private boolean multiTouchMode = false;
 	private int stylusMode = STYLUS_MODE_INKING;
 
@@ -322,6 +323,36 @@ class DrawingCanvas implements MultitouchReceiver {
 					break;
 				}
 				break;
+
+			case STYLUS_MODE_ERASER:
+				switch (cursor.getDistanceStateEventType()) {
+					case MultitouchCursor.EVENT_OUT_OF_RANGE_TO_TOUCHING:
+					case MultitouchCursor.EVENT_HOVERING_TO_TOUCHING:
+						inputCursor = cursor;
+						inputCursor.setSavingOfHistory(true);
+						break;
+					case MultitouchCursor.EVENT_TOUCHING_TO_OUT_OF_RANGE:
+					case MultitouchCursor.EVENT_WHILE_TOUCHING:
+						boolean done = false;
+						Point2D cur = cursor.getCurrentPosition();
+						MultitouchFramework.Assert(inputCursor == cursor, "f0debe74");
+						for (Stroke s : drawing.strokes) {
+							ArrayList<Point2D> points2D = s.getPoints2D(camera);
+							for (int i = 0; i < points2D.size(); ++i) {
+								if (cur.distance(points2D.get(i)) <= 10 ) {
+									drawing.strokes.remove( s );
+									done = true;
+									break;
+								}
+								if (done) break;
+							}
+						}
+						break;
+					case MultitouchCursor.EVENT_TOUCHING_TO_HOVERING:
+						MultitouchFramework.Assert(inputCursor == cursor, "eraser");
+						inputCursor = null;
+						break;
+				}
 			}
 		}
 	}
@@ -636,36 +667,38 @@ class Toolbar implements MultitouchDispatcher, MultitouchReceiver {
 	private static final int BM_DELETE_SELECTION = 0;
 	private static final int BM_DELETE_CONFIRM = 1;
 	private static final int BM_DELETE_LAST_STROKE = 2;
-	private static final int BM_RECTANGLE_LASSO_SELECTION_TOOL = 3; // radio button group B
-	private static final int BM_INKING_TOOL = 4;                    // radio button group B
-	private static final int BM_INKING_SYMMETRICAL_TOOL = 5;        // radio button group B
-	private static final int BM_BLACK_INK = 6;   // radio button group C
-	private static final int BM_RED_INK = 7;     // radio button group C
-	private static final int BM_GREEN_INK = 8;   // radio button group C
-	private static final int BM_ORANGE_INK = 9;  // radio button group C
-	private static final int BM_BLUE_INK = 10;    // radio button group C
-	private static final int BM_PURPLE_INK = 11; // radio button group C
-	private static final int BM_GREY_INK = 12;   // radio button group C
-	private static final int BM_MULTI = 13;
-	private static final int NUM_BITMAPS = 14;
+	private static final int BM_ERASER = 3;                         // radio button group B
+	private static final int BM_RECTANGLE_LASSO_SELECTION_TOOL = 4; // radio button group B
+	private static final int BM_INKING_TOOL = 5;                    // radio button group B
+	private static final int BM_INKING_SYMMETRICAL_TOOL = 6;        // radio button group B
+	private static final int BM_BLACK_INK = 7;   // radio button group C
+	private static final int BM_RED_INK = 8;     // radio button group C
+	private static final int BM_GREEN_INK = 9;   // radio button group C
+	private static final int BM_ORANGE_INK = 10;  // radio button group C
+	private static final int BM_BLUE_INK = 11;    // radio button group C
+	private static final int BM_PURPLE_INK = 12; // radio button group C
+	private static final int BM_GREY_INK = 13;   // radio button group C
+	private static final int BM_MULTI = 14;
+	private static final int NUM_BITMAPS = 15;
 
 	// These indices will be used to index into an array,
 	// and thus should start at zero.
 	// The TB_ prefix means Toolbar Button
 	private static final int TB_DELETE_SELECTION = 0;
 	private static final int TB_DELETE_LAST_STROKE = 1;
-	private static final int TB_RECTANGLE_LASSO_SELECTION_TOOL = 2; // radio button group B
-	private static final int TB_INKING_TOOL = 3;                    // radio button group B
-	private static final int TB_INKING_SYMMETRICAL_TOOL = 4;        // radio button group B
-	private static final int TB_BLACK_INK = 5;  // radio button group C
-	private static final int TB_RED_INK = 6;    // radio button group C
-	private static final int TB_GREEN_INK = 7;  // radio button group C
-	private static final int TB_ORANGE_INK = 8; // radio button group C
-	private static final int TB_BLUE_INK = 9;   // radio button group C
-	private static final int TB_PURPLE_INK = 10; // radio button group C
-	private static final int TB_GREY_INK = 11;  // radio button group C
-	private static final int TB_MULTI = 12;
-	private static final int NUM_TOOLBAR_BUTTONS = 13;
+	private static final int TB_ERASER = 2;                         // radio button group B
+	private static final int TB_RECTANGLE_LASSO_SELECTION_TOOL = 3; // radio button group B
+	private static final int TB_INKING_TOOL = 4;                    // radio button group B
+	private static final int TB_INKING_SYMMETRICAL_TOOL = 5;        // radio button group B
+	private static final int TB_BLACK_INK = 6;  // radio button group C
+	private static final int TB_RED_INK = 7;    // radio button group C
+	private static final int TB_GREEN_INK = 8;  // radio button group C
+	private static final int TB_ORANGE_INK = 9; // radio button group C
+	private static final int TB_BLUE_INK = 10;   // radio button group C
+	private static final int TB_PURPLE_INK = 11; // radio button group C
+	private static final int TB_GREY_INK = 12;  // radio button group C
+	private static final int TB_MULTI = 13;
+	private static final int NUM_TOOLBAR_BUTTONS = 14;
 
 	public MultitouchFramework mf = null;
 	DrawingCanvas drawingCanvas = null;
@@ -685,6 +718,7 @@ class Toolbar implements MultitouchDispatcher, MultitouchReceiver {
 		mf.loadBitmap( BM_DELETE_SELECTION,               R.drawable.delete );
 		mf.loadBitmap( BM_DELETE_LAST_STROKE,             R.drawable.delete_last_stroke );
 		mf.loadBitmap( BM_DELETE_CONFIRM,                 R.drawable.delete_confirm );
+		mf.loadBitmap( BM_ERASER,                         R.drawable.eraser );
 		mf.loadBitmap( BM_RECTANGLE_LASSO_SELECTION_TOOL, R.drawable.rect_lasso );
 		mf.loadBitmap( BM_INKING_TOOL,                    R.drawable.pencil2 );
 		mf.loadBitmap( BM_INKING_SYMMETRICAL_TOOL,        R.drawable.pencil_symmetrical );
@@ -708,6 +742,8 @@ class Toolbar implements MultitouchDispatcher, MultitouchReceiver {
 
 		x0 += iconSize;
 
+		buttons[index++] = new ToolbarButton(mf,this,x0,0,iconSize,iconSize,"Eraser",
+				BM_ERASER,-1,-1); x0 += iconSize;
 		buttons[index++] = new ToolbarButton(mf,this,x0,0,iconSize,iconSize,"Rectangle/Lasso Selection",
 			BM_RECTANGLE_LASSO_SELECTION_TOOL,-1,-1); x0 += iconSize;
 		buttons[index++] = new ToolbarButton(mf,this,x0,0,iconSize,iconSize,"Inking",
@@ -744,6 +780,9 @@ class Toolbar implements MultitouchDispatcher, MultitouchReceiver {
 	private void setStylusMode( int toolbarButton ) {
 		stylusMode_toolbarButton = toolbarButton;
 		switch ( stylusMode_toolbarButton ) {
+			case TB_ERASER :
+				drawingCanvas.setStylusMode( DrawingCanvas.STYLUS_MODE_ERASER );
+				break;
 			case TB_RECTANGLE_LASSO_SELECTION_TOOL :
 				drawingCanvas.setStylusMode( DrawingCanvas.STYLUS_MODE_LASSO );
 				break;
@@ -826,6 +865,10 @@ class Toolbar implements MultitouchDispatcher, MultitouchReceiver {
         else if ( button == buttons[ TB_DELETE_LAST_STROKE ] ) {
             drawingCanvas.deleteLastStroke();
         }
+
+		else if ( button == buttons[ TB_ERASER ] ) {
+			setStylusMode( TB_ERASER );
+		}
 
 		else if ( button == buttons[ TB_RECTANGLE_LASSO_SELECTION_TOOL ] ) {
 			setStylusMode( TB_RECTANGLE_LASSO_SELECTION_TOOL );

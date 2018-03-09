@@ -13,7 +13,7 @@ public class Constant {
 	// For normal debugging, you might set the first two to true, to catch assertion errors.
 	public static final boolean displayLogOfDebugMessages = true;
 	public static final boolean logAssertionErrorsWithDebugMessages = true;
-	public static final boolean logInputEventsWithDebugMessages = false;
+	public static final boolean logInputEventsWithDebugMessages = true;
 	public static final boolean logAllOtherDebugMessages = false;
 
 	
